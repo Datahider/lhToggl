@@ -37,13 +37,11 @@ try {
     if (!$client) {
         throw new Exception("Клиент не найден");
     }
-    $project = new lhTogglProject(['name' => 'Тестовый проект (набор 001) '. uniqid(), 'cid' => $client->data->id]);
+    $project = new lhTogglProject(['name' => 'Тестовый проект (набор 002) '. uniqid(), 'cid' => $client->data->id]);
     $te = new lhTogglTimeEntry();
     $te->start($project);
-    $te->loadCurrent();
-    sleep(3);
+    sleep(30);
     $te->stop();
-    $te->loadCurrent();
     echo "Проверьте новую запись для проекта ".$project->data->name."\n";
     
 } catch (Exception $e) {

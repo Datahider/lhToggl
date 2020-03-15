@@ -77,6 +77,31 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
         }
     }
 
+    public function findWorkspaces($_regex, $_return_array=false) {
+        $found = [];
+        foreach ($this->workspaces() as $workspace) {
+            if (preg_match($_regex, $workspace->data->name)) {
+                $found[] = $workspace;
+                if (!$_return_array) {
+                    return $workspace;
+                }
+            }
+        }
+        if ($_return_array) {
+            return $found;
+        } else {
+            return NULL;
+        }
+    }
+    
+    public function getCurrentTimeEntry() {
+        $r = $this->apiCall(lhTogglTimeEntry::API_FUNC, 'current');
+        if (!isset($r->data)) {
+            return NULL;
+        }
+        return new lhTogglTimeEntry($r->data);
+    }
+
     protected function setWorkspaceIfAbsent($data) {
         $data = json_decode(json_encode($data));
         if (isset($data->client)) {
@@ -316,6 +341,19 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
             throw new Exception("only_admins_see_billable_rates is still ".$data1->workspace->only_admins_see_billable_rates);
         }
     }
+    
+    protected function _testGetCurrentTimeEntry() {
+        $project = new lhTogglProject(['name' => "Test getting current time entry ".uniqid()]);
+        $te = new lhTogglTimeEntry();
+        $te->start($project);
+        if ($te->data->id != $this->getCurrentTimeEntry()->data->id) {
+            throw new Exception("Current time etntry is not the same as started");
+        }
+        $te->stop();
+        if ($this->getCurrentTimeEntry() !== NULL) {
+            throw new Exception("Timer is still running");
+        }
+    }
 
     // lhTestingSuite
     protected function _test_data() {
@@ -335,7 +373,13 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
                 [new lhTogglWorkspace(4066148), new lhTogglWorkspace(4066148)],
             ],
             'setWorkspaceIfAbsent' => '_testSetWorkSpaceIfAbsent',
-            'filterProFeatures' => '_testFilterProFeatures'
+            'filterProFeatures' => '_testFilterProFeatures',
+            'findWorkspaces' => [
+                ['/^Моя ж/u', new lhTest(lhTest::IS_A, 'lhTogglWorkspace')],
+                ['/^Тестовый воркспейс$/u', new lhTest(lhTest::IS_A, 'lhTogglWorkspace')],
+                ['/^Ghjsdfasdfa/u', NULL],
+            ],
+            'getCurrentTimeEntry' => '_testGetCurrentTimeEntry'
         ];
     }
     

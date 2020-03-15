@@ -36,13 +36,5 @@ class lhTogglTimeEntry extends lhTogglEntity {
             throw new Exception($this->_t("Got id=%s but awaiting %s", $r->data->id, $this->data->id));
         }
         $this->data = $r->data;
-    }
-    
-    public function loadCurrent() {
-        $r = $this->api->apiCall(lhTogglTimeEntry::API_FUNC, 'current');
-        if (!isset($r->data)) {
-            throw new Exception("Can't get current time entry");
-        }
-    }
-    
+    }    
 }
