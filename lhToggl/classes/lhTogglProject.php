@@ -35,9 +35,13 @@ class lhTogglProject extends lhTogglEntity {
     }
 
     protected function _test_data() {
+        $name = "Same name ".uniqid();
         return [
-            'load' => '_test_skip_',              // Протестировано при создании экземпляра класса
-            'create' => '_test_skip_',            // Протестировано при создании экземпляра класса
+            'load' => '_test_skip_',                // Протестировано при создании экземпляра класса
+            'create' => [                           // Потестим создание проектов с одинаковым именем
+                [['name' => $name], NULL],
+                [['name' => $name], new Exception("Name already taken", -10002)],
+            ],
             'update' => '_test_update',
             'delete' => '_test_delete',
         ];
