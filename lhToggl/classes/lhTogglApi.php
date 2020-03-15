@@ -14,18 +14,23 @@ require_once __DIR__.'/../abstract/lhTogglClass.php';
  */
 class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
     const TOGGL_API_PATH = 'https://www.toggl.com/api/v8/';
+    const TOGGL_API_DELETE = 'DELETE';
     
     private static $static_api;
     
     private $auth;
     private $workspaces;
-    
-    public function __construct($token) {
+    private $default_workspace;
+    private $is_pro;
+
+
+    public function __construct($_token, $_pro=false) {
         if ($this->hasInstance()) {
             throw new Exception("There can be only one instance of lhTogglApi", -10005);
         }
+        $this->is_pro = $_pro;
         lhTogglApi::$static_api = $this;
-        $this->auth = $token.':api_token';
+        $this->auth = $_token.':api_token';
         $this->workspaces = $this->loadWorkspaces();
     }
     
@@ -39,19 +44,76 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
     
     public function loadWorkspaces() {
         $r = $this->apiCall('workspaces');
-        print_r($r);
-        throw new Exception("Stop");
-    }
-
-    public function getWorkspaces() {
-        if (!$this->workspaces) {
-            
+        if (!is_array($r)) {
+            throw new Exception("Awaiting \$r to be an array. Got: ".print_r($r, TRUE));
+        }
+        $this->workspaces = [];
+        foreach ($r as $ws) {
+            $this->workspaces[] = new lhTogglWorkspace($ws->id);
         }
     }
 
+    public function workspaces() {
+        if (!$this->workspaces) {
+            $this->loadWorkspaces();
+        }
+        return $this->workspaces;
+    }
+
+    public function defaultWorkspace($ws=FALSE) {
+        if (!$ws) {
+            return $this->default_workspace;
+        } elseif (!is_a($ws, 'lhTogglWorkspace')) {
+            throw new Exception("Argument must be of class lhTogglWorkspace or it's descendants");
+        } else {
+            $old_ws = $this->default_workspace;
+            foreach ($this->workspaces as $oneof) {
+                if ($oneof->data->id == $ws->data->id) {
+                    $this->default_workspace = $ws;
+                    return $old_ws;
+                }
+            }
+            throw new Exception("Given workspace id=".$ws->data->id." is not accessible with current credinitials");
+        }
+    }
+
+    protected function setWorkspaceIfAbsent($data) {
+        $data = json_decode(json_encode($data));
+        if (isset($data->client)) {
+            if (!isset($data->client->wid)) {
+                $data->client->wid = $this->defaultWorkspace()->data->id;
+            }
+        }
+        return $data;
+    }
     
-
-
+    protected function filterProFeatures($data) {
+        if ($this->is_pro) {
+            return;
+        }
+        $data = json_decode(json_encode($data));
+        if (isset($data->workspace)) {
+            if (isset($data->workspace->default_hourly_rate)) {
+                unset($data->workspace->default_hourly_rate);
+            }
+            if (isset($data->workspace->default_currency)) {
+                unset($data->workspace->default_currency);
+            }
+            if (isset($data->workspace->rounding)) {
+                unset($data->workspace->rounding);
+            }
+            if (isset($data->workspace->rounding_minutes)) {
+                unset($data->workspace->rounding_minutes);
+            }
+            if (isset($data->workspace->only_admins_see_billable_rates)) {
+                unset($data->workspace->only_admins_see_billable_rates);
+            }
+            if (isset($data->workspace->projects_billable_by_default)) {
+                unset($data->workspace->projects_billable_by_default);
+            }
+        }
+        return $data;
+    }
 
     public function apiCall($func, $more=false, $data=null) {
         if ($more) {
@@ -61,10 +123,21 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
         }
         
         if ($data === null) {
-            return $this->apiGet($path);
+            $r = $this->apiGet($path);
+        } elseif (!$more || ($more == 'start')) {
+            $r = $this->apiPost($path, $data);
         } else {
-            return $this->apiPut($path, $data);
+            if ($data == lhTogglApi::TOGGL_API_DELETE) {
+                $r = $this->apiDelete($path);
+                return;
+            } else {
+                $r = $this->apiPut($path, $data);
+            }
         }
+        if (!is_a($r, 'stdClass') && !is_array($r)) {
+            throw new Exception(print_r($r, TRUE), -10004);
+        }
+        return $r;
     }
 
     public function apiGet($path) {
@@ -76,36 +149,100 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
                 CURLOPT_USERPWD => $this->auth
             ))) {    
                 $content=curl_exec($ch);
-                if ($content === FALSE) {
-                    throw new Exception("Error getting data: ". curl_errno($ch), -10004);
-                } else {
-                    print_r([ 'path' => $path, 'content' => $content]);
+                if (!$content) {
+                    throw new Exception("Error getting data: " . curl_errno($ch) . " - " . curl_error($ch), -10004);
                 }
                 curl_close($ch);
-                return json_decode($content);
+                $json = json_decode($content);
+                if (!$json) {
+                    throw new Exception("We expect json encoded data from upstream server. Got: ". $content, -10002);
+                }
+                return $json;
             }
         }
         throw new Exception("curl_init error", -10006);
     }
 
     public function apiPut($path, $data) {
+        $data = $this->filterProFeatures($data);
+        $fh = tmpfile();
+        fwrite($fh, json_encode($data));
+        fseek($fh, 0);
+        $json = json_encode($data);
+
         $ch = curl_init($path);
         if ( $ch ) {
             if (curl_setopt_array( $ch, array(
                 CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Accept: */*'
+                ),
                 CURLOPT_PUT => true,
-                CURLOPT_POSTFIELDS => array( 'payload' => json_encode($data)),
+                CURLOPT_INFILE => $fh,
                 CURLOPT_USERPWD => $this->auth
             ))) {    
                 $content=curl_exec($ch);
+                if (!$content) {
+                    throw new Exception("Error getting data: " . curl_errno($ch) . " - " . curl_error($ch), -10004);
+                }
                 curl_close($ch);
-                return json_decode($content);
+                $json = json_decode($content);
+                if (!$json) {
+                    throw new Exception("We expect json encoded data from upstream server. Got: ". $content, -10002);
+                }
+                return $json;
             }
         }
         throw new Exception("curl_init error", -10006);
     }
 
+    public function apiPost($path, $data) {
+        $data = $this->filterProFeatures($data);
+        $data = $this->setWorkspaceIfAbsent($data);
+        $ch = curl_init($path);
+        if ( $ch ) {
+            if (curl_setopt_array( $ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_USERPWD => $this->auth
+            ))) {    
+                $content=curl_exec($ch);
+                if (!$content) {
+                    throw new Exception("Error getting data: " . curl_errno($ch) . " - " . curl_error($ch), -10004);
+                }
+                curl_close($ch);
+                $json = json_decode($content);
+                if (!$json) { 
+                    throw new Exception("We expect json encoded data from upstream server. Got: ". $content, -10002);
+                }
+                return $json;
+            }
+        }
+        throw new Exception("curl_init error. \$path=$path", -10006);
+    }
 
+    public function apiDelete($path) {
+        $ch = curl_init($path);
+        if ( $ch ) {
+            if (curl_setopt_array( $ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
+                CURLOPT_CUSTOMREQUEST => 'DELETE',
+                CURLOPT_USERPWD => $this->auth
+            ))) {    
+                $content=curl_exec($ch);
+                if (!$content) {
+                    throw new Exception("Error getting data: " . curl_errno($ch) . " - " . curl_error($ch), -10004);
+                }
+                curl_close($ch);
+                return;
+            }
+        }
+        throw new Exception("curl_init error. \$path=$path", -10006);
+    }
 
 
 
@@ -114,7 +251,7 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
 
 
     // Тесты
-    private function _testHasInstance() {
+    protected function _testHasInstance() {
         // Проверим что возвращает hasInstance когда объект не создан
         lhTogglApi::$static_api = NULL;
         $r = $this->hasInstance();
@@ -131,21 +268,75 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
         echo '.';
     }
 
+    protected function _testWorkspaces() {
+        $r = $this->workspaces();
+        $nows = TRUE;
+        
+        foreach ($r as $ws) {
+            $nows = FALSE;
+            if (!is_a($ws, 'lhTogglWorkspace')) {
+                throw new Exception("Awaiting the workspace to be an lhTogglWorkspace instance. Got: ", print_r($ws, TRUE), -10002);
+            }
+        }
+    }
 
-
-
-
+    protected function _testSetWorkSpaceIfAbsent() {
+        $data1 = (object)[
+            "client" => (object)[
+                'name' => 'Some name',
+                'wid' => '13'
+            ]
+        ];
+        $data2 = (object)[
+            "client" => (object)[
+                'name' => 'Some name',
+            ]
+        ];
+        
+        $data1 = $this->setWorkspaceIfAbsent($data1);
+        if ($data1->client->wid != 13) {
+            throw new Exception("Workspace Id unexpectedly changed to ".$data1->client->wid);
+        }
+        $data2 = $this->setWorkspaceIfAbsent($data2);
+        if ($data2->client->wid != $this->defaultWorkspace()->data->id) {
+            throw new Exception("Default workspace still ".$data2->client->wid);
+        }
+    }
+    
+    protected function _testFilterProFeatures() {
+        $data1 = (object)[
+            "workspace" => (object)[
+                'name' => 'Some name',
+                'wid' => '13',
+                'only_admins_see_billable_rates' => TRUE
+            ]
+        ];
+        $data1 = $this->filterProFeatures($data1);
+        if (isset($data1->workspace->only_admins_see_billable_rates)) {
+            throw new Exception("only_admins_see_billable_rates is still ".$data1->workspace->only_admins_see_billable_rates);
+        }
+    }
 
     // lhTestingSuite
     protected function _test_data() {
         return [
             'api' => [[$this]],
             'hasInstance' => '_testHasInstance',
-            'loadWorkspaces' => '__test_skip'           // Used in __construct
+            'loadWorkspaces' => '_test_skip_',          // Используется в конструкторе
+            'workspaces' => '_testWorkspaces',
+            'apiCall' => '_test_skip_',                 // Используется в конструкторе и множестве других классов
+            'apiGet' => '_test_skip_',                  // Используется в конструкторе и множестве других классов
+            'apiPut' => '_test_skip_',                  // Используется в множестве других классов
+            'apiPost' => '_test_skip_',                 // Используется в множестве других классов
+            'apiDelete' => '_test_skip_',               // Будет протестировано на клиентах
+            'defaultWorkspace' => [
+                [NULL],
+                [new lhTogglWorkspace(4066148), NULL],
+                [new lhTogglWorkspace(4066148), new lhTogglWorkspace(4066148)],
+            ],
+            'setWorkspaceIfAbsent' => '_testSetWorkSpaceIfAbsent',
+            'filterProFeatures' => '_testFilterProFeatures'
         ];
     }
     
-    protected function _test_call($func, ...$args) {
-        return $this->$func(...$args);
-    }
 }
