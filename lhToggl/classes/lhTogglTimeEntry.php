@@ -14,7 +14,8 @@ class lhTogglTimeEntry extends lhTogglEntity {
             lhTogglTimeEntry::JSON_NAME => [
                 'pid' => $_project->data->id,
                 'created_with' => 'lhToggl API Library (info@losthost.online)',
-                'start' => (new DateTime)->format(DATE_ATOM)
+                'start' => (new DateTime)->format(DATE_ATOM),
+                'description' => $name
             ]
         ]);
         if (!isset($r->data)) {
