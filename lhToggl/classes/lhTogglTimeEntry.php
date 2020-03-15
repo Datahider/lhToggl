@@ -37,4 +37,12 @@ class lhTogglTimeEntry extends lhTogglEntity {
         }
         $this->data = $r->data;
     }
+    
+    public function loadCurrent() {
+        $r = $this->api->apiCall(lhTogglTimeEntry::API_FUNC, 'current');
+        if (!isset($r->data)) {
+            throw new Exception("Can't get current time entry");
+        }
+    }
+    
 }
