@@ -34,6 +34,12 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
         $this->workspaces = $this->loadWorkspaces();
     }
     
+    public function reconstruct($_token, $_pro=false) {
+        $this->is_pro = $_pro;
+        $this->auth = $_token.':api_token';
+        $this->workspaces = $this->loadWorkspaces();
+    }
+
     public static function api() {
         return lhTogglApi::$static_api;
     }
