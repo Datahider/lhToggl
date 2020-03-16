@@ -146,8 +146,5 @@ class lhTogglWorkspace extends lhTogglEntity {
         ];
     }
     
-    protected function _test_call($func, ...$args) {
-        return $this->$func(...$args);
-    }
 
 }
