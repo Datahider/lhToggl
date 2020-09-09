@@ -1,6 +1,6 @@
 <?php
 
-define('__LIB_ROOT__', '/Users/user/MyData/phplib');
+define('__LIB_ROOT__', '/Users/drweb_000/Desktop/MyData/phplib');
 
 spl_autoload_register(function ($class) {
     $suggested = [

@@ -363,7 +363,9 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
 
     // lhTestingSuite
     protected function _test_data() {
+        global $correct_token;
         return [
+            'reconstruct' => [[$correct_token, NULL]],
             'api' => [[$this]],
             'hasInstance' => '_testHasInstance',
             'loadWorkspaces' => '_test_skip_',          // Используется в конструкторе
@@ -381,7 +383,7 @@ class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
             'setWorkspaceIfAbsent' => '_testSetWorkSpaceIfAbsent',
             'filterProFeatures' => '_testFilterProFeatures',
             'findWorkspaces' => [
-                ['/^Моя ж/u', new lhTest(lhTest::IS_A, 'lhTogglWorkspace')],
+                ['/^LOST/u', new lhTest(lhTest::IS_A, 'lhTogglWorkspace')],
                 ['/^Тестовый воркспейс$/u', new lhTest(lhTest::IS_A, 'lhTogglWorkspace')],
                 ['/^Ghjsdfasdfa/u', NULL],
             ],

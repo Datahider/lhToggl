@@ -6,12 +6,14 @@ require_once __DIR__ . '/autoloader.php';
 require_once __DIR__ . '/lhToggl/classes/lhTogglApi.php';
 
 try {
+    echo "\nTesting lhTogglApi...\n";
     $tapi = new lhTogglApi("$correct_token");
     $tapi->_test();
 
     $ws_tested = FALSE;
     foreach ($tapi->workspaces() as $ws) {
         if ($ws->data->name == "Тестовый воркспейс") { 
+            echo "\nTesting lhTogglWorkspace...\n";
             $ws->_test();
             $ws_tested = TRUE;
             break;
@@ -23,10 +25,12 @@ try {
         throw new Exception("Не удалось найти тестовый воркспейс", -10007);
     }
     
+    echo "\nTesting lhTogglClient...\n";
     $cli = new lhTogglClient(['name' => 'Новый клиент '.  uniqid()]);
     echo $cli->data->id;
     $cli->_test();
     
+    echo "\nTesting lhTogglProject...\n";
     $prj = new lhTogglProject(['name' => 'Новый проект '. uniqid()]);
     echo $prj->data->id;
     $prj->_test();
@@ -38,6 +42,15 @@ try {
         throw new Exception("Клиент не найден");
     }
     $project = new lhTogglProject(['name' => 'Тестовый проект (набор 002) '. uniqid(), 'cid' => $client->data->id]);
+    $te = new lhTogglTimeEntry();
+    $te->create([
+        'pid' => $project->data->id,
+        'start' => (new DateTime)->format(DATE_ATOM),
+        'duration' => 1200,
+        'tags' => ['test tag'],
+        'description' => "Check test tag on this TE"
+    ]);
+    
     $te = new lhTogglTimeEntry();
     $te->start($project);
     sleep(30);
