@@ -19,6 +19,7 @@ class lhTogglWorkspace extends lhTogglEntity {
     private $projects;
     
     public function clients() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         if (!isset($this->clients)) {
             return $this->loadClients();
         }
@@ -26,21 +27,27 @@ class lhTogglWorkspace extends lhTogglEntity {
     }
     
     public function loadClients() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $r = $this->api->apiCall(lhTogglWorkspace::API_FUNC, $this->_t("%s/%s", $this->data->id, lhTogglClient::API_FUNC));
         if (!is_array($r)) {
             throw new Exception("Awaiting \$r to be an array. Got: ".print_r($r, TRUE));
         }
+        $this->log(['loaded clients ' => count($r)], 20);
         $this->clients = [];
         foreach ($r as $client_data) {
             $this->clients[] = new lhTogglClient($client_data);
         }
+        $this->log(['returned clients' => count($this->clients)], 20);
         return $this->clients;
     }
 
     public function findClients($_regex, $_return_array=false) {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $found = [];
         foreach ($this->clients() as $client) {
+            $this->log(['search' => $_regex, 'in' => $client->data->name], 25);
             if (preg_match($_regex, $client->data->name)) {
+                $this->log('found', 25);
                 $found[] = $client;
                 if (!$_return_array) {
                     return $client;
@@ -55,6 +62,7 @@ class lhTogglWorkspace extends lhTogglEntity {
     }
 
     public function projects() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         if (!isset($this->projects)) {
             return $this->loadProjects();
         }
@@ -62,6 +70,7 @@ class lhTogglWorkspace extends lhTogglEntity {
     }
     
     public function loadProjects() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $r = $this->api->apiCall(lhTogglWorkspace::API_FUNC, $this->_t("%s/%s", $this->data->id, lhTogglProject::API_FUNC));
         if (!is_array($r)) {
             throw new Exception("Awaiting \$r to be an array. Got: ".print_r($r, TRUE));
@@ -74,6 +83,7 @@ class lhTogglWorkspace extends lhTogglEntity {
     }
 
     public function findProjects($_regex, $_return_array=false) {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $found = [];
         foreach ($this->projects() as $project) {
             if (preg_match($_regex, $project->data->name)) {
