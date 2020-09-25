@@ -12,6 +12,8 @@
  * @author user
  */
 abstract class lhTogglClass extends lhSelfTestingClass {
+    const REGESC = "/([{}\[\]()^\$.|*+?\\<>\/])/";
+
     protected $api;
     
     function __construct() {
