@@ -12,6 +12,8 @@ class lhTogglEntity extends lhTogglClass {
     public $data;
     
     public function __construct($data=NULL) {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
+        $this->log(['data' => $data], 15);
         parent::__construct();
 
         if ($data === NULL) {
@@ -34,6 +36,8 @@ class lhTogglEntity extends lhTogglClass {
     }
             
     public function load($id=FALSE) { // Загрузка сущности из toggl 
+        $this->log(__CLASS__.'->'.__FUNCTION__);
+        $this->log(['id' => $id], 15);
         $class = get_class($this);
         $func = $class::API_FUNC;
         
@@ -48,6 +52,7 @@ class lhTogglEntity extends lhTogglClass {
     }
 
     public function update() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $class = get_class($this);
         $func = $class::API_FUNC;
         $name = $class::JSON_NAME;
@@ -60,6 +65,8 @@ class lhTogglEntity extends lhTogglClass {
     }
     
     public function create($data) {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
+        $this->log(['data' => $data], 15);
         $class = get_class($this);
         $func = $class::API_FUNC;
         $name = $class::JSON_NAME;
@@ -70,6 +77,7 @@ class lhTogglEntity extends lhTogglClass {
     }
     
     public function delete() {
+        $this->log(__CLASS__.'->'.__FUNCTION__);
         $class = get_class($this);
         $func = $class::API_FUNC;
         $name = $class::JSON_NAME;
