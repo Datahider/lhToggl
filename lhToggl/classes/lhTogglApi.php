@@ -13,7 +13,7 @@ require_once __DIR__.'/../abstract/lhTogglClass.php';
  * @author user
  */
 class lhTogglApi extends lhTogglClass implements lhTogglApiInterface {
-    const TOGGL_API_PATH = 'https://www.toggl.com/api/v8/';
+    const TOGGL_API_PATH = 'https://api.track.toggl.com/api/v8/'; 
     const TOGGL_API_DELETE = 'DELETE';
     
     private static $static_api;
